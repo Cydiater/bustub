@@ -14,16 +14,32 @@
 
 namespace bustub {
 
-LRUReplacer::LRUReplacer(size_t num_pages) {}
+LRUReplacer::LRUReplacer(size_t num_pages) : timer(0) {}
 
 LRUReplacer::~LRUReplacer() = default;
 
-bool LRUReplacer::Victim(frame_id_t *frame_id) { return false; }
+bool LRUReplacer::Victim(frame_id_t *frame_id) {
+  if (list_.empty()) {
+    return false;
+  }
+  LRUItem v = list_.front();
+  list_.pop_front();
+  *frame_id = v.frame_id;
+  return true;
+}
 
-void LRUReplacer::Pin(frame_id_t frame_id) {}
+void LRUReplacer::Pin(frame_id_t frame_id) {
+  list_.remove_if([frame_id](LRUItem item) { return frame_id == item.frame_id; });
+}
 
-void LRUReplacer::Unpin(frame_id_t frame_id) {}
+void LRUReplacer::Unpin(frame_id_t frame_id) {
+  if (std::find_if(list_.begin(), list_.end(), [frame_id](LRUItem item) { return item.frame_id == frame_id; }) !=
+      list_.end()) {
+    return;
+  }
+  list_.emplace_back(frame_id, timer++);
+}
 
-size_t LRUReplacer::Size() { return 0; }
+size_t LRUReplacer::Size() { return list_.size(); }
 
 }  // namespace bustub

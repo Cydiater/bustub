@@ -21,6 +21,13 @@
 
 namespace bustub {
 
+struct LRUItem {
+  frame_id_t frame_id;
+  uint32_t timestamp;
+
+  LRUItem(frame_id_t _frame_id, uint32_t _timestamp) : frame_id(_frame_id), timestamp(_timestamp) {}
+};
+
 /**
  * LRUReplacer implements the lru replacement policy, which approximates the Least Recently Used policy.
  */
@@ -46,7 +53,8 @@ class LRUReplacer : public Replacer {
   size_t Size() override;
 
  private:
-  // TODO(student): implement me!
+  std::list<LRUItem> list_;
+  uint32_t timer;
 };
 
 }  // namespace bustub
