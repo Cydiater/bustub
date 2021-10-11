@@ -12,7 +12,6 @@
 
 #pragma once
 
-#include <list>
 #include <mutex>  // NOLINT
 #include <vector>
 
@@ -21,12 +20,13 @@
 
 namespace bustub {
 
-struct LRUItem {
-  frame_id_t frame_id;
-  uint32_t timestamp;
+  struct LRUItem {
+    frame_id_t frame_id;
+    LRUItem *prev, *next;
+    bool ok;
 
-  LRUItem(frame_id_t _frame_id, uint32_t _timestamp) : frame_id(_frame_id), timestamp(_timestamp) {}
-};
+    explicit LRUItem(frame_id_t frame_id_) : frame_id(frame_id_), prev(nullptr), next(nullptr), ok(false) {  }
+  };
 
 /**
  * LRUReplacer implements the lru replacement policy, which approximates the Least Recently Used policy.
@@ -53,8 +53,9 @@ class LRUReplacer : public Replacer {
   size_t Size() override;
 
  private:
-  std::list<LRUItem> list_;
-  uint32_t timer, num_pages_;
+  LRUItem *head, *tail;
+  uint32_t num_pages_, num_size_;
+  std::vector<LRUItem*> ref_table_;
   std::mutex latch_;
 };
 
