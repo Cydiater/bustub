@@ -12,6 +12,7 @@
 
 #include "buffer/lru_replacer.h"
 #include <algorithm>
+#include <cassert>
 #include "common/logger.h"
 
 namespace bustub {
@@ -49,6 +50,7 @@ bool LRUReplacer::Victim(frame_id_t *frame_id) {
 
 void LRUReplacer::Pin(frame_id_t frame_id) {
   latch_.lock();
+  assert(frame_id < static_cast<int>(num_pages_));
   if (ref_table_[frame_id]->ok) {
     ref_table_[frame_id]->ok = false;
     num_size_ -= 1;
@@ -71,6 +73,7 @@ void LRUReplacer::Pin(frame_id_t frame_id) {
 
 void LRUReplacer::Unpin(frame_id_t frame_id) {
   latch_.lock();
+  assert(frame_id < static_cast<int>(num_pages_));
   if (ref_table_[frame_id]->ok) {
     latch_.unlock();
     return;

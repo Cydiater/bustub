@@ -54,13 +54,19 @@ class BPlusTree {
   // return the value associated with a given key
   bool GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *transaction = nullptr);
 
+  // find sibling of
+  BPlusTreePage *FindSiblingOf(BPlusTreePage *node);
+  BPlusTreePage *FindRightSiblingOf(BPlusTreePage *node);
+
   // index iterator
   INDEXITERATOR_TYPE begin();
   INDEXITERATOR_TYPE Begin(const KeyType &key);
   INDEXITERATOR_TYPE end();
 
   void Print(BufferPoolManager *bpm) {
-    ToString(reinterpret_cast<BPlusTreePage *>(bpm->FetchPage(root_page_id_)->GetData()), bpm);
+    if (root_page_id_ != INVALID_PAGE_ID) {
+      ToString(reinterpret_cast<BPlusTreePage *>(bpm->FetchPage(root_page_id_)->GetData()), bpm);
+    }
   }
 
   void Draw(BufferPoolManager *bpm, const std::string &outf) {
@@ -108,6 +114,10 @@ class BPlusTree {
   void ToGraph(BPlusTreePage *page, BufferPoolManager *bpm, std::ofstream &out) const;
 
   void ToString(BPlusTreePage *page, BufferPoolManager *bpm) const;
+
+  int SanityCheck(BPlusTreePage *page);
+
+  void SanityCheck();
 
   // member variable
   std::string index_name_;

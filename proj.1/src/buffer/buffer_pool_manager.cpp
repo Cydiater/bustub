@@ -15,6 +15,8 @@
 #include <list>
 #include <unordered_map>
 
+#include "common/logger.h"
+
 namespace bustub {
 
 BufferPoolManager::BufferPoolManager(size_t pool_size, DiskManager *disk_manager, LogManager *log_manager)
@@ -47,33 +49,45 @@ Page *BufferPoolManager::FetchPageImpl(page_id_t page_id) {
   if (it != page_table_.end()) {
     frame_id_t frame_id = it->second;
     auto *page = &pages_[frame_id];
-    //page->RLatch();
+    // page->RLatch();
     page->pin_count_ += 1;
-    //page->RUnlatch();
+    if (page->GetPageId() != page_id) {
+      // LOG_DEBUG("page_id = %d but page->GetPageId() = %d", page_id, page->GetPageId());
+    }
+    // page->RUnlatch();
     replacer_->Pin(frame_id);
+    // LOG_DEBUG("fetch #%d at $%d", page_id, frame_id);
     latch_.unlock();
+    // assert(page->GetPageId() == page_id);
     return page;
   }
   frame_id_t frame_id;
-  if (!replacer_->Victim(&frame_id)) {
+  if (!free_list_.empty()) {
+    frame_id = free_list_.front();
+    free_list_.pop_front();
+  } else if (replacer_->Victim(&frame_id)) {
+    auto page = &pages_[frame_id];
+    // page->WLatch();
+    if (page->IsDirty()) {
+      disk_manager_->WritePage(page->GetPageId(), page->GetData());
+      page->is_dirty_ = false;
+    }
+    // LOG_DEBUG("erase #%d -> $%d from page_table", page->GetPageId(), page_table_[page->GetPageId()]);
+    page_table_.erase(page->GetPageId());
+    // page->WUnlatch();
+  } else {
     latch_.unlock();
     return nullptr;
   }
-  auto *replace_page = &pages_[frame_id];
-  //replace_page->RLatch();
-  if (replace_page->IsDirty()) {
-    disk_manager_->WritePage(replace_page->GetPageId(), replace_page->GetData());
-  }
-  page_table_.erase(replace_page->GetPageId());
-  //replace_page->RUnlatch();
-  auto page = replace_page;
-  //page->WLatch();
+  auto page = &pages_[frame_id];
+  // page->WLatch();
   page->page_id_ = page_id;
   page->pin_count_ = 1;
   page->is_dirty_ = false;
   disk_manager_->ReadPage(page_id, page->GetData());
-  //page->WUnlatch();
+  // page->WUnlatch();
   page_table_[page_id] = frame_id;
+  // LOG_DEBUG("fetch #%d at $%d", page_id, frame_id);
   latch_.unlock();
   return page;
 }
@@ -83,13 +97,16 @@ bool BufferPoolManager::UnpinPageImpl(page_id_t page_id, bool is_dirty) {
   auto it = page_table_.find(page_id);
   if (it == page_table_.end()) {
     latch_.unlock();
+    // LOG_DEBUG("#%d not found", page_id);
+    // assert(false);
     return true;
   }
   auto frame_id = it->second;
   auto page = &pages_[frame_id];
-  //page->WLatch();
+  // page->WLatch();
   if (page->pin_count_ <= 0) {
-    //page->WUnlatch();
+    // page->WUnlatch();
+    // assert(false);
     latch_.unlock();
     return false;
   }
@@ -97,10 +114,17 @@ bool BufferPoolManager::UnpinPageImpl(page_id_t page_id, bool is_dirty) {
   if (is_dirty) {
     page->is_dirty_ = is_dirty;
   }
+  // assert(page->GetPageId() == page_id);
+  // LOG_DEBUG("release #%d at $%d, pin_count = %d", page_id, frame_id, page->GetPinCount());
   if (page->pin_count_ == 0) {
     replacer_->Unpin(frame_id);
+  } else {
+    // LOG_DEBUG("pin count of #%d = %d", page_id, page->pin_count_);
+    // if (page_id > 0) {
+    // assert(false);
+    //}
   }
-  //page->WUnlatch();
+  // page->WUnlatch();
   latch_.unlock();
   return true;
 }
@@ -115,10 +139,10 @@ bool BufferPoolManager::FlushPageImpl(page_id_t page_id) {
   }
   auto frame_id = it->second;
   auto page = &pages_[frame_id];
-  //page->WLatch();
+  // page->WLatch();
   disk_manager_->WritePage(page_id, page->GetData());
   page->is_dirty_ = false;
-  //page->WUnlatch();
+  // page->WUnlatch();
   latch_.unlock();
   return true;
 }
@@ -137,29 +161,33 @@ Page *BufferPoolManager::NewPageImpl(page_id_t *page_id) {
   } else if (replacer_->Size() != 0) {
     if (!replacer_->Victim(&frame_id)) {
       latch_.unlock();
+      // assert(false);
       return nullptr;
     }
     auto page = &pages_[frame_id];
-    //page->WLatch();
+    // page->WLatch();
     if (page->IsDirty()) {
       disk_manager_->WritePage(page->GetPageId(), page->GetData());
       page->is_dirty_ = false;
     }
+    // LOG_DEBUG("erase #%d -> $%d from page_table", page->GetPageId(), page_table_[page->GetPageId()]);
     page_table_.erase(page->GetPageId());
-    //page->WUnlatch();
+    // page->WUnlatch();
   } else {
     latch_.unlock();
+    // assert(false);
     return nullptr;
   }
   auto page = &pages_[frame_id];
-  //page->WLatch();
+  // page->WLatch();
   *page_id = page->page_id_ = disk_manager_->AllocatePage();
   page->pin_count_ = 1;
   page->is_dirty_ = false;
   page->ResetMemory();
   page_table_[page->page_id_] = frame_id;
+  // LOG_DEBUG("new #%d from $%d", *page_id, frame_id);
   replacer_->Pin(frame_id);
-  //page->WUnlatch();
+  // page->WUnlatch();
   latch_.unlock();
   return page;
 }
@@ -174,23 +202,28 @@ bool BufferPoolManager::DeletePageImpl(page_id_t page_id) {
   auto it = page_table_.find(page_id);
   if (it == page_table_.end()) {
     latch_.unlock();
+    // assert(false);
     return true;
   }
   auto frame_id = it->second;
   auto page = &pages_[frame_id];
-  //page->WLatch();
+  // page->WLatch();
   if (page->GetPinCount() != 0) {
-    //page->WUnlatch();
+    // page->WUnlatch();
+    // assert(false);
     latch_.unlock();
     return false;
   }
+  // LOG_DEBUG("delete #%d", page_id);
   page_table_.erase(page_id);
   page->page_id_ = INVALID_PAGE_ID;
   page->pin_count_ = 0;
   page->is_dirty_ = false;
   page->ResetMemory();
-  //page->WUnlatch();
+  // page->WUnlatch();
   free_list_.push_back(frame_id);
+  replacer_->Pin(frame_id);
+  disk_manager_->DeallocatePage(page_id);
   latch_.unlock();
   return true;
 }
@@ -200,12 +233,12 @@ void BufferPoolManager::FlushAllPagesImpl() {
   for (auto kv : page_table_) {
     auto frame_id = kv.second;
     auto page = &pages_[frame_id];
-    //page->WLatch();
+    // page->WLatch();
     if (page->is_dirty_) {
       disk_manager_->WritePage(page->GetPageId(), page->GetData());
       page->is_dirty_ = false;
     }
-    //page->WUnlatch();
+    // page->WUnlatch();
   }
   latch_.unlock();
 }

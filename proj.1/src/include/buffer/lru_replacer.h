@@ -20,13 +20,13 @@
 
 namespace bustub {
 
-  struct LRUItem {
-    frame_id_t frame_id;
-    LRUItem *prev, *next;
-    bool ok;
+struct LRUItem {
+  frame_id_t frame_id;
+  LRUItem *prev, *next;
+  bool ok;
 
-    explicit LRUItem(frame_id_t frame_id_) : frame_id(frame_id_), prev(nullptr), next(nullptr), ok(false) {  }
-  };
+  explicit LRUItem(frame_id_t frame_id_) : frame_id(frame_id_), prev(nullptr), next(nullptr), ok(false) {}
+};
 
 /**
  * LRUReplacer implements the lru replacement policy, which approximates the Least Recently Used policy.
@@ -55,7 +55,7 @@ class LRUReplacer : public Replacer {
  private:
   LRUItem *head, *tail;
   uint32_t num_pages_, num_size_;
-  std::vector<LRUItem*> ref_table_;
+  std::vector<LRUItem *> ref_table_;
   std::mutex latch_;
 };
 

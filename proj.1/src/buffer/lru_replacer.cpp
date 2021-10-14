@@ -11,18 +11,23 @@
 //===----------------------------------------------------------------------===//
 
 #include "buffer/lru_replacer.h"
-#include "common/logger.h"
 #include <algorithm>
+#include <cassert>
+#include "common/logger.h"
 
 namespace bustub {
 
-  LRUReplacer::LRUReplacer(size_t num_pages) : head(nullptr), tail(nullptr), num_pages_(num_pages), num_size_(0) {
-    for (int i = 0; i < static_cast<int>(num_pages); i++) {
-      ref_table_.push_back(new LRUItem(i));
-    }
+LRUReplacer::LRUReplacer(size_t num_pages) : head(nullptr), tail(nullptr), num_pages_(num_pages), num_size_(0) {
+  for (int i = 0; i < static_cast<int>(num_pages); i++) {
+    ref_table_.push_back(new LRUItem(i));
   }
+}
 
-LRUReplacer::~LRUReplacer() = default;
+LRUReplacer::~LRUReplacer() {
+  for (int i = 0; i < static_cast<int>(num_pages_); i++) {
+    delete ref_table_[i];
+  }
+}
 
 bool LRUReplacer::Victim(frame_id_t *frame_id) {
   latch_.lock();
@@ -45,10 +50,11 @@ bool LRUReplacer::Victim(frame_id_t *frame_id) {
 
 void LRUReplacer::Pin(frame_id_t frame_id) {
   latch_.lock();
+  assert(frame_id < static_cast<int>(num_pages_));
   if (ref_table_[frame_id]->ok) {
     ref_table_[frame_id]->ok = false;
     num_size_ -= 1;
-    auto prev = ref_table_[frame_id]->prev; 
+    auto prev = ref_table_[frame_id]->prev;
     auto next = ref_table_[frame_id]->next;
     ref_table_[frame_id]->prev = ref_table_[frame_id]->next = nullptr;
     if (prev != nullptr) {
@@ -67,6 +73,7 @@ void LRUReplacer::Pin(frame_id_t frame_id) {
 
 void LRUReplacer::Unpin(frame_id_t frame_id) {
   latch_.lock();
+  assert(frame_id < static_cast<int>(num_pages_));
   if (ref_table_[frame_id]->ok) {
     latch_.unlock();
     return;
@@ -90,11 +97,11 @@ void LRUReplacer::Unpin(frame_id_t frame_id) {
   latch_.unlock();
 }
 
-size_t LRUReplacer::Size() { 
+size_t LRUReplacer::Size() {
   latch_.lock();
   auto size = num_size_;
   latch_.unlock();
-  return size; 
+  return size;
 }
 
 }  // namespace bustub
