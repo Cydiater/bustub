@@ -42,6 +42,8 @@ class BPlusTree {
   explicit BPlusTree(std::string name, BufferPoolManager *buffer_pool_manager, const KeyComparator &comparator,
                      int leaf_max_size = LEAF_PAGE_SIZE, int internal_max_size = INTERNAL_PAGE_SIZE);
 
+  ~BPlusTree();
+
   // Returns true if this B+ tree has no keys and values.
   bool IsEmpty() const;
 
@@ -53,10 +55,6 @@ class BPlusTree {
 
   // return the value associated with a given key
   bool GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *transaction = nullptr);
-
-  // find sibling of
-  BPlusTreePage *FindSiblingOf(BPlusTreePage *node);
-  BPlusTreePage *FindRightSiblingOf(BPlusTreePage *node);
 
   // index iterator
   INDEXITERATOR_TYPE begin();
@@ -79,6 +77,7 @@ class BPlusTree {
 
   // read data from file and insert one by one
   void InsertFromFile(const std::string &file_name, Transaction *transaction = nullptr);
+  void GetValueFromFile(const std::string &file_name, Transaction *transaction = nullptr);
 
   // read data from file and remove one by one
   void RemoveFromFile(const std::string &file_name, Transaction *transaction = nullptr);
@@ -97,14 +96,13 @@ class BPlusTree {
   N *Split(N *node);
 
   template <typename N>
-  bool CoalesceOrRedistribute(N *node, Transaction *transaction = nullptr);
+  void CoalesceOrRedistribute(N *node, Transaction *transaction = nullptr);
 
   template <typename N>
-  bool Coalesce(N **neighbor_node, N **node, BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> **parent,
-                int index, Transaction *transaction = nullptr);
+  void Coalesce(InternalPage *i_page, N *siblings[], Transaction *transaction);
 
   template <typename N>
-  void Redistribute(N *neighbor_node, N *node, int index);
+  void Redistribute(InternalPage *i_page, N *siblings[], int rich_pos);
 
   bool AdjustRoot(BPlusTreePage *node);
 
@@ -127,6 +125,8 @@ class BPlusTree {
   int leaf_max_size_;
   int internal_max_size_;
   int size_;
+  // protect the size_ and root_page_id_
+  std::mutex *mu;
 };
 
 }  // namespace bustub

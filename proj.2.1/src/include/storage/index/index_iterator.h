@@ -24,20 +24,35 @@ class IndexIterator {
  public:
   // you may define your own constructor based on your member variables
   IndexIterator();
+  IndexIterator(BufferPoolManager *buffer_pool_manager, BPlusTreeLeafPage<KeyType, ValueType, KeyComparator> *_page,
+                int _offset);
   ~IndexIterator();
 
-  bool isEnd();
+  bool isEnd() const;
 
   const MappingType &operator*();
 
   IndexIterator &operator++();
 
-  bool operator==(const IndexIterator &itr) const { throw std::runtime_error("unimplemented"); }
+  bool operator==(const IndexIterator &itr) const {
+    if (isEnd() && itr.isEnd()) {
+      return true;
+    }
+    if (isEnd()) {
+      return false;
+    }
+    if (itr.isEnd()) {
+      return false;
+    }
+    return page->GetPageId() == itr.page->GetPageId() && offset == itr.offset;
+  }
 
-  bool operator!=(const IndexIterator &itr) const { throw std::runtime_error("unimplemented"); }
+  bool operator!=(const IndexIterator &itr) const { return !((*this) == itr); }
 
  private:
-  // add your own private member variables here
+  int offset = 0;
+  BPlusTreeLeafPage<KeyType, ValueType, KeyComparator> *page = nullptr;
+  BufferPoolManager *buffer_pool_manager_ = nullptr;
 };
 
 }  // namespace bustub

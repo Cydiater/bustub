@@ -177,11 +177,9 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::CopyNFrom(MappingType *items, int size, Buf
     auto page_id = items[i].second;
     assert(page_id != INVALID_PAGE_ID);
     auto page = buffer_pool_manager->FetchPage(page_id);
-    if (page == nullptr) {
-      throw new Exception(ExceptionType::OUT_OF_MEMORY, "CopyNFrom");
-    }
-    auto sub_page = reinterpret_cast<B_PLUS_TREE_INTERNAL_PAGE_TYPE *>(page);
-    sub_page->SetParentPageId(GetPageId());
+    assert(page != nullptr);
+    auto i_page = reinterpret_cast<B_PLUS_TREE_INTERNAL_PAGE_TYPE *>(page);
+    i_page->SetParentPageId(GetPageId());
     buffer_pool_manager->UnpinPage(page_id, true);
   }
   IncreaseSize(size);
@@ -284,10 +282,10 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveLastToFrontOf(BPlusTreeInternalPage *re
  */
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::CopyFirstFrom(const MappingType &pair, BufferPoolManager *buffer_pool_manager) {
-  for (int i = GetSize(); i > 1; i--) {
+  for (int i = GetSize(); i > 0; i--) {
     array[i] = array[i - 1];
   }
-  array[1] = pair;
+  array[0] = pair;
   IncreaseSize(1);
   auto page_id = pair.second;
   auto page = buffer_pool_manager->FetchPage(page_id);

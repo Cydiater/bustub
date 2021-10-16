@@ -53,21 +53,21 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::SetNextPageId(page_id_t next_page_id) { next_pa
  */
 INDEX_TEMPLATE_ARGUMENTS
 int B_PLUS_TREE_LEAF_PAGE_TYPE::KeyIndex(const KeyType &key, const KeyComparator &comparator) const {
-  int left = 1;
+  int left = 0;
   int right = GetSize() - 1;
   int mid;
   while (left + 1 < right) {
     mid = (left + right) / 2;
     if (comparator(array[mid].first, key) >= 0) {
-      left = mid;
-    } else {
       right = mid;
+    } else {
+      left = mid;
     }
   }
-  if (comparator(array[left].first, key) < 0) {
-    left = right;
+  if (comparator(array[left].first, key) >= 0) {
+    right = left;
   }
-  return left;
+  return right;
 }
 
 /*
@@ -100,26 +100,21 @@ int B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(const KeyType &key, const ValueType &valu
     IncreaseSize(1);
     return GetSize();
   }
-  int index = -1;
-  for (int i = 0; i < GetSize(); i++) {
-    if (comparator(key, array[i].first) == -1) {
-      index = i;
-      break;
-    }
-    if (comparator(key, array[i].first) == 0) {
-      return GetSize();
-    }
+  // insert into last
+  int index = KeyIndex(key, comparator);
+  if (comparator(key, array[index].first) == 0) {
+    return GetSize();
   }
-  if (comparator(key, array[GetSize() - 1].first) == 1) {
+  if (comparator(key, array[GetSize() - 1].first) > 0) {
     index = GetSize();
+  } else {
+    assert(comparator(array[index].first, key) == 1);
   }
-  if (index != -1) {
-    for (int i = GetSize(); i > index; i--) {
-      array[i] = array[i - 1];
-    }
-    array[index] = std::make_pair(key, value);
-    IncreaseSize(1);
+  for (int i = GetSize(); i > index; i--) {
+    array[i] = array[i - 1];
   }
+  array[index] = std::make_pair(key, value);
+  IncreaseSize(1);
   return GetSize();
 }
 

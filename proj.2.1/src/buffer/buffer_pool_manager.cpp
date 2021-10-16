@@ -49,12 +49,10 @@ Page *BufferPoolManager::FetchPageImpl(page_id_t page_id) {
   if (it != page_table_.end()) {
     frame_id_t frame_id = it->second;
     auto *page = &pages_[frame_id];
-    // page->RLatch();
     page->pin_count_ += 1;
     if (page->GetPageId() != page_id) {
       // LOG_DEBUG("page_id = %d but page->GetPageId() = %d", page_id, page->GetPageId());
     }
-    // page->RUnlatch();
     replacer_->Pin(frame_id);
     // LOG_DEBUG("fetch #%d at $%d", page_id, frame_id);
     latch_.unlock();
@@ -67,14 +65,12 @@ Page *BufferPoolManager::FetchPageImpl(page_id_t page_id) {
     free_list_.pop_front();
   } else if (replacer_->Victim(&frame_id)) {
     auto page = &pages_[frame_id];
-    // page->WLatch();
     if (page->IsDirty()) {
       disk_manager_->WritePage(page->GetPageId(), page->GetData());
       page->is_dirty_ = false;
     }
     // LOG_DEBUG("erase #%d -> $%d from page_table", page->GetPageId(), page_table_[page->GetPageId()]);
     page_table_.erase(page->GetPageId());
-    // page->WUnlatch();
   } else {
     latch_.unlock();
     return nullptr;
@@ -103,9 +99,7 @@ bool BufferPoolManager::UnpinPageImpl(page_id_t page_id, bool is_dirty) {
   }
   auto frame_id = it->second;
   auto page = &pages_[frame_id];
-  // page->WLatch();
   if (page->pin_count_ <= 0) {
-    // page->WUnlatch();
     // assert(false);
     latch_.unlock();
     return false;
@@ -124,7 +118,6 @@ bool BufferPoolManager::UnpinPageImpl(page_id_t page_id, bool is_dirty) {
     // assert(false);
     //}
   }
-  // page->WUnlatch();
   latch_.unlock();
   return true;
 }
@@ -165,14 +158,12 @@ Page *BufferPoolManager::NewPageImpl(page_id_t *page_id) {
       return nullptr;
     }
     auto page = &pages_[frame_id];
-    // page->WLatch();
     if (page->IsDirty()) {
       disk_manager_->WritePage(page->GetPageId(), page->GetData());
       page->is_dirty_ = false;
     }
     // LOG_DEBUG("erase #%d -> $%d from page_table", page->GetPageId(), page_table_[page->GetPageId()]);
     page_table_.erase(page->GetPageId());
-    // page->WUnlatch();
   } else {
     latch_.unlock();
     // assert(false);
@@ -187,7 +178,6 @@ Page *BufferPoolManager::NewPageImpl(page_id_t *page_id) {
   page_table_[page->page_id_] = frame_id;
   // LOG_DEBUG("new #%d from $%d", *page_id, frame_id);
   replacer_->Pin(frame_id);
-  // page->WUnlatch();
   latch_.unlock();
   return page;
 }
@@ -207,9 +197,7 @@ bool BufferPoolManager::DeletePageImpl(page_id_t page_id) {
   }
   auto frame_id = it->second;
   auto page = &pages_[frame_id];
-  // page->WLatch();
   if (page->GetPinCount() != 0) {
-    // page->WUnlatch();
     // assert(false);
     latch_.unlock();
     return false;
@@ -220,7 +208,6 @@ bool BufferPoolManager::DeletePageImpl(page_id_t page_id) {
   page->pin_count_ = 0;
   page->is_dirty_ = false;
   page->ResetMemory();
-  // page->WUnlatch();
   free_list_.push_back(frame_id);
   replacer_->Pin(frame_id);
   disk_manager_->DeallocatePage(page_id);
@@ -233,12 +220,10 @@ void BufferPoolManager::FlushAllPagesImpl() {
   for (auto kv : page_table_) {
     auto frame_id = kv.second;
     auto page = &pages_[frame_id];
-    // page->WLatch();
     if (page->is_dirty_) {
       disk_manager_->WritePage(page->GetPageId(), page->GetData());
       page->is_dirty_ = false;
     }
-    // page->WUnlatch();
   }
   latch_.unlock();
 }

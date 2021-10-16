@@ -92,6 +92,10 @@ TEST(BptTreeTest, UnitTest) {
         std::cin >> filename;
         tree.InsertFromFile(filename, transaction);
         break;
+      case 't':
+        std::cin >> filename;
+        tree.GetValueFromFile(filename, transaction);
+        break;
       case 'q':
         quit = true;
         break;
