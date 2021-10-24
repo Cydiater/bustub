@@ -259,3 +259,5 @@ docs/dev
 *.conf
 
 .cache
+# Vagrant
+.vagrant
