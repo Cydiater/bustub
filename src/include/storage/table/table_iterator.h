@@ -29,12 +29,16 @@ class TableIterator {
   friend class Cursor;
 
  public:
+  TableIterator() = default;
+
   TableIterator(TableHeap *table_heap, RID rid, Transaction *txn);
 
   TableIterator(const TableIterator &other)
       : table_heap_(other.table_heap_), tuple_(new Tuple(*other.tuple_)), txn_(other.txn_) {}
 
-  ~TableIterator() { delete tuple_; }
+  ~TableIterator() { 
+    delete tuple_; 
+  }
 
   inline bool operator==(const TableIterator &itr) const { return tuple_->rid_.Get() == itr.tuple_->rid_.Get(); }
 
@@ -56,9 +60,9 @@ class TableIterator {
   }
 
  private:
-  TableHeap *table_heap_;
-  Tuple *tuple_;
-  Transaction *txn_;
+  TableHeap *table_heap_ = nullptr;
+  Tuple *tuple_ = new Tuple();
+  Transaction *txn_ = nullptr;
 };
 
 }  // namespace bustub

@@ -20,6 +20,8 @@
 #include "execution/plans/index_scan_plan.h"
 #include "storage/table/tuple.h"
 
+#define II IndexIterator<GenericKey<8>, RID, GenericComparator<8>>
+
 namespace bustub {
 
 /**
@@ -44,5 +46,8 @@ class IndexScanExecutor : public AbstractExecutor {
  private:
   /** The index scan plan node to be executed. */
   const IndexScanPlanNode *plan_;
+  II it, end;
+  IndexInfo *index_meta;
+  TableMetadata *table_meta;
 };
 }  // namespace bustub
