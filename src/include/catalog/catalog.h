@@ -77,14 +77,35 @@ class Catalog {
    */
   TableMetadata *CreateTable(Transaction *txn, const std::string &table_name, const Schema &schema) {
     BUSTUB_ASSERT(names_.count(table_name) == 0, "Table names should be unique!");
-    return nullptr;
+    if (names_.count(table_name) != 0) {
+      throw std::out_of_range("CreateTable");
+    }
+    auto table_oid = next_table_oid_.load();
+    auto table = std::make_unique<TableHeap>(bpm_, lock_manager_, log_manager_, txn);
+    auto meta = new TableMetadata(schema, table_name, std::move(table), table_oid);
+    next_table_oid_++;
+    tables_[table_oid] = std::unique_ptr<TableMetadata>(meta);
+    names_[table_name] = table_oid;
+    return meta;
   }
 
   /** @return table metadata by name */
-  TableMetadata *GetTable(const std::string &table_name) { return nullptr; }
+  TableMetadata *GetTable(const std::string &table_name) {
+    auto it = names_.find(table_name);
+    if (it == names_.end()) {
+      throw std::out_of_range("GetTable");
+    }
+    return GetTable(it->second);
+  }
 
   /** @return table metadata by oid */
-  TableMetadata *GetTable(table_oid_t table_oid) { return nullptr; }
+  TableMetadata *GetTable(table_oid_t table_oid) {
+    auto it = tables_.find(table_oid);
+    if (it == tables_.end()) {
+      throw std::out_of_range("GetTable");
+    }
+    return it->second.get();
+  }
 
   /**
    * Create a new index, populate existing data of the table and return its metadata.
@@ -101,19 +122,57 @@ class Catalog {
   IndexInfo *CreateIndex(Transaction *txn, const std::string &index_name, const std::string &table_name,
                          const Schema &schema, const Schema &key_schema, const std::vector<uint32_t> &key_attrs,
                          size_t keysize) {
-    return nullptr;
+    auto index_metadata = new IndexMetadata(index_name, table_name, &schema, key_attrs);
+    auto index = std::make_unique<BPlusTreeIndex<KeyType, ValueType, KeyComparator>>(index_metadata, bpm_);
+    auto index_oid = next_index_oid_.load();
+    auto index_info = new IndexInfo(key_schema, index_name, std::move(index), index_oid, table_name, keysize);
+    next_table_oid_++;
+    indexes_[index_oid] = std::unique_ptr<IndexInfo>(index_info);
+    index_names_[table_name][index_name] = index_oid;
+    return index_info;
   }
 
-  IndexInfo *GetIndex(const std::string &index_name, const std::string &table_name) { return nullptr; }
+  IndexInfo *GetIndex(const std::string &index_name, const std::string &table_name) {
+    auto it = index_names_.find(table_name);
+    if (it == index_names_.end()) {
+      throw std::out_of_range("GetIndex");
+    }
+    auto nit = it->second.find(index_name);
+    if (nit == it->second.end()) {
+      throw std::out_of_range("GetIndex");
+    }
+    auto index_oid = nit->second;
+    return GetIndex(index_oid);
+  }
 
-  IndexInfo *GetIndex(index_oid_t index_oid) { return nullptr; }
+  IndexInfo *GetIndex(index_oid_t index_oid) {
+    auto it = indexes_.find(index_oid);
+    if (it == indexes_.end()) {
+      throw std::out_of_range("GetIndex");
+    }
+    return it->second.get();
+  }
 
-  std::vector<IndexInfo *> GetTableIndexes(const std::string &table_name) { return std::vector<IndexInfo *>(); }
+  std::vector<IndexInfo *> GetTableIndexes(const std::string &table_name) {
+    auto it = index_names_.find(table_name);
+    if (it == index_names_.end()) {
+      throw std::out_of_range("GetTableIndexes");
+    }
+    std::vector<IndexInfo *> table_indexes;
+    for (auto const &index_oid : it->second) {
+      auto nit = indexes_.find(index_oid.second);
+      if (nit == indexes_.end()) {
+        throw std::out_of_range("GetTableIndexes");
+      }
+      table_indexes.push_back(nit->second.get());
+    }
+    return table_indexes;
+  }
 
  private:
-  [[maybe_unused]] BufferPoolManager *bpm_;
-  [[maybe_unused]] LockManager *lock_manager_;
-  [[maybe_unused]] LogManager *log_manager_;
+  BufferPoolManager *bpm_;
+  LockManager *lock_manager_;
+  LogManager *log_manager_;
 
   /** tables_ : table identifiers -> table metadata. Note that tables_ owns all table metadata. */
   std::unordered_map<table_oid_t, std::unique_ptr<TableMetadata>> tables_;
