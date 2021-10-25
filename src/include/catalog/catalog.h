@@ -86,6 +86,7 @@ class Catalog {
     next_table_oid_++;
     tables_[table_oid] = std::unique_ptr<TableMetadata>(meta);
     names_[table_name] = table_oid;
+    index_names_[table_name] = std::unordered_map<std::string, index_oid_t>();
     return meta;
   }
 

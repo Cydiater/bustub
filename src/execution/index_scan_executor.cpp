@@ -18,26 +18,26 @@ IndexScanExecutor::IndexScanExecutor(ExecutorContext *exec_ctx, const IndexScanP
     : AbstractExecutor(exec_ctx), plan_(plan), index_meta(nullptr), table_meta(nullptr) {}
 
 void IndexScanExecutor::Init() {
-    auto catalog = exec_ctx_->GetCatalog();
-    index_meta = catalog->GetIndex(plan_->GetIndexOid());
-    auto bp_index = static_cast<BI*>(index_meta->index_.get());
-    auto table_name = index_meta->table_name_;
-    table_meta = catalog->GetTable(table_name);
-    it = bp_index->GetBeginIterator();
-    end = bp_index->GetEndIterator();
+  auto catalog = exec_ctx_->GetCatalog();
+  index_meta = catalog->GetIndex(plan_->GetIndexOid());
+  auto bp_index = static_cast<BI *>(index_meta->index_.get());
+  auto table_name = index_meta->table_name_;
+  table_meta = catalog->GetTable(table_name);
+  it = bp_index->GetBeginIterator();
+  end = bp_index->GetEndIterator();
 }
 
-bool IndexScanExecutor::Next(Tuple *tuple, RID *rid) { 
-    auto pred = plan_->GetPredicate();
-    while (it != end) {
-        *rid = (*it).second;
-        *tuple = Tuple(*rid);
-        ++it;
-        if (pred->Evaluate(tuple, &table_meta->schema_).GetAs<bool>()) {
-            return true;
-        }
+bool IndexScanExecutor::Next(Tuple *tuple, RID *rid) {
+  auto pred = plan_->GetPredicate();
+  while (it != end) {
+    *rid = (*it).second;
+    *tuple = Tuple(*rid);
+    ++it;
+    if (pred->Evaluate(tuple, &table_meta->schema_).GetAs<bool>()) {
+      return true;
     }
-    return false;
+  }
+  return false;
 }
 
 }  // namespace bustub

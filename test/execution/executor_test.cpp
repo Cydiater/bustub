@@ -348,6 +348,7 @@ TEST_F(ExecutorTest, SimpleDeleteTest) {
   auto scan_plan1 = std::make_unique<SeqScanPlanNode>(out_schema1, predicate, table_info->oid_);
   // index
   Schema *key_schema = ParseCreateStatement("a bigint");
+  LOG_DEBUG("key_schema %s", key_schema->ToString().c_str());
   GenericComparator<8> comparator(key_schema);
   auto index_info = GetExecutorContext()->GetCatalog()->CreateIndex<GenericKey<8>, RID, GenericComparator<8>>(
       GetTxn(), "index1", "test_1", GetExecutorContext()->GetCatalog()->GetTable("test_1")->schema_, *key_schema, {0},
